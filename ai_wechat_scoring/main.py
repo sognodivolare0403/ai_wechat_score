@@ -142,7 +142,7 @@ def output_result(result, file, sheet_name):
 
 # 使用示例
 if __name__ == "__main__":
-    scored_position = "123"
+    scored_position = "xingzheng"
     scored_person = "董晗"
     system_prompt = read_system_prompt(scored_position, scored_person)
 
