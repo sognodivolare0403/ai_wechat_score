@@ -87,37 +87,57 @@ def read_user_message(excel_file):
         print(f"读取Excel文件出错: {e}")
         return f"读取Excel文件出错: {e}"
 
-def send_chat_request(system_prompt, user_message, model="deepseek-reasoner"):
+def get_api_config():
     """
-    向OpenAI API发送聊天请求
+    从环境变量获取API配置
+    
+    Returns:
+        dict: API配置信息
+    """
+    load_dotenv() 
+    
+    # 构建配置
+    config = {
+        "url": f"{os.getenv('API_URL')}/v1/chat/completions",
+        "key": os.getenv("API_KEY"),
+        "model": os.getenv("MODEL"),
+    }
+    
+    if not config["key"]:
+        raise ValueError(f"请在.env文件中设置 {config['key_name']}")
+    
+    return config
+
+def send_chat_request(system_prompt, user_message, model=None):
+    """
+    向AI API发送聊天请求，支持OpenAI、DeepSeek、Claude
     
     Args:
         system_prompt (str): 系统提示
         user_message (str or list): 用户消息，如果是list会转换为JSON字符串
-        model (str): 使用的模型，默认为gpt-3.5-turbo
+        model (str): 使用的模型，如果不指定则使用环境变量配置
     
     Returns:
         dict: API响应
     """
-    # print("sending request`")
+    config = get_api_config()
     
-    load_dotenv()
-    API_KEY = os.getenv("OPENAI_API_KEY")
-    if not API_KEY:
-        raise ValueError("请在.env文件中设置OPENAI_API_KEY")
-    
-    url = "https://api.openai-proxy.org/v1/chat/completions"
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
-    }
+    # 使用传入的模型或配置中的默认模型
+    if model is None:
+        model = config["model"]
     
     # 如果user_message是list，转换为JSON字符串
     if isinstance(user_message, list):
         user_message_content = json.dumps(user_message, ensure_ascii=False, indent=2)
     else:
         user_message_content = str(user_message)
+    
+
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {config['key']}"
+    }
     
     data = {
         "model": model,
@@ -126,13 +146,15 @@ def send_chat_request(system_prompt, user_message, model="deepseek-reasoner"):
             {"role": "user", "content": user_message_content}
         ]
     }
-    # print("loading request hedaer")
+    
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(config["url"], headers=headers, json=data, timeout=60)
         response.raise_for_status()
-        return response.json()
+        result = response.json()
+        return result
+        
     except requests.exceptions.RequestException as e:
-        print(f"请求出错: {e}")
+        print(f"❌ API请求出错: {e}")
         return None
     
 def output_result(result, file, sheet_name):
